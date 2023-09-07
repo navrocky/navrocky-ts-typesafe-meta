@@ -1,54 +1,101 @@
-interface MyIface {
-  name?: string;
-  hello(name: string): boolean;
-}
+type OptionalType<T, True, False> = [T] extends [{}] ? False : True;
 
-interface Type {
+type OptionalPart = {
+  optional: true;
+};
+
+type RequiredPart = {
+  optional?: false;
+};
+
+type BaseTypePart = {
+  type: string;
   description?: string;
-}
+};
 
-interface StringType<T extends string> extends Type {
+type Type<T> = BaseTypePart & OptionalType<T, OptionalPart, RequiredPart>;
+
+type StringType<T> = Type<T> & {
   type: 'string';
-  // optional:
-}
+};
 
-interface BooleanType extends Type {
+type BooleanType<T> = Type<T> & {
   type: 'boolean';
-}
+};
 
-interface FunctionType<T extends (...args: any) => any> {
+type NumberType<T> = Type<T> & {
+  type: 'number';
+};
+
+type MapToAutoType<T> = {
+  [P in keyof T]-?: AutoType<T[P]>;
+};
+
+type FunctionType<T extends (...args: any) => any> = Type<T> & {
   type: 'function';
   description?: string;
-  parameters: Parameters<T>;
+  parameters: MapToAutoType<Parameters<T>>;
   return: AutoType<ReturnType<T>>;
-}
+};
 
 type AutoType<T> = T extends boolean
-  ? BooleanType
+  ? BooleanType<T>
+  : T extends number
+  ? NumberType<T>
   : T extends string
   ? StringType<T>
   : T extends (...args: any) => any
   ? FunctionType<T>
+  : T extends {}
+  ? IfaceType<T>
   : never;
 
-interface IfaceType<T> extends Type {
+type IfaceType<T> = Type<T> & {
   name: string;
+  type: 'interface';
   description?: string;
-  properties: { [P in keyof Required<T>]: AutoType<T[P]> };
+  properties: { [P in keyof T]: AutoType<T[P]> };
+};
+
+////////////////////////////////////////////////////////////////////////////////////////
+
+interface InnerIface {
+  flag: boolean;
 }
 
-const MyIfaceMeta: IfaceType<MyIface> = {
-  name: 'MyIface',
+interface MyIface {
+  surname: string | undefined;
+  inner: InnerIface;
+  hello(name: string, age?: number): boolean;
+}
+
+const InnerIfaceMeta: IfaceType<InnerIface> = {
+  name: 'InnerIface',
+  type: 'interface',
   properties: {
-    name: {
-      type: 'string',
-    },
-    hello: {
-      type: 'function',
-      parameters: ['asd'],
-      return: {
-        type: 'boolean',
-      },
+    flag: {
+      type: 'boolean',
     },
   },
 };
+
+const Str: StringType<string> = { type: 'string' };
+const Bool: BooleanType<boolean> = { type: 'boolean' };
+const Num: NumberType<number> = { type: 'number' };
+
+const MyIfaceMeta: IfaceType<MyIface> = {
+  name: 'MyIface',
+  type: 'interface',
+  properties: {
+    surname: Str,
+    hello: {
+      type: 'function',
+      parameters: [Str, Num],
+      return: Bool,
+    },
+    inner: InnerIfaceMeta,
+  },
+};
+
+type T1 = OptionalType<string | undefined, true, false>;
+type T2 = OptionalType<string, true, false>;
